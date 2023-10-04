@@ -32,6 +32,8 @@ SU_EXPORT @protocol SPUStandardUserDriverDelegate <NSObject>
 
 @optional
 
+- (BOOL)standardUserDriverShouldAutoConfirmModalAlert;
+
 /**
  Called before showing a modal alert window,
  to give the opportunity to hide attached windows that may get in the way.

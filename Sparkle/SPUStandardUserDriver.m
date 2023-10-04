@@ -360,7 +360,12 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
     id<SUVersionDisplay> versionDisplayer = (customVersionDisplayer != nil) ? customVersionDisplayer : [SPUStandardVersionDisplay standardVersionDisplay];
     
     BOOL needsToObserveUserAttention = [delegate respondsToSelector:@selector(standardUserDriverDidReceiveUserAttentionForUpdate:)];
-    
+
+    if ([self shouldAutoConfirm]) {
+        reply(SPUUserUpdateChoiceInstall);
+        return;
+    }
+
     __weak __typeof__(self) weakSelf = self;
     __weak id<SPUStandardUserDriverDelegate> weakDelegate = delegate;
     _activeUpdateAlert = [[SUUpdateAlert alloc] initWithAppcastItem:appcastItem state:state host:_host versionDisplayer:versionDisplayer completionBlock:^(SPUUserUpdateChoice choice, NSRect windowFrame, BOOL wasKeyWindow) {
@@ -503,7 +508,12 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
 - (void)showReadyToInstallAndRelaunch:(void (^)(SPUUserUpdateChoice))installUpdateHandler
 {
     assert(NSThread.isMainThread);
-    
+
+    if ([self shouldAutoConfirm]) {
+        installUpdateHandler(SPUUserUpdateChoiceInstall);
+        return;
+    }
+
     [self _showAndConfigureStatusControllerForReadyToInstallWithAction:@selector(installAndRestart:) closable:NO];
     
     [NSApp requestUserAttention:NSInformationalRequest];
@@ -531,7 +541,11 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
 - (void)showUserInitiatedUpdateCheckWithCancellation:(void (^)(void))cancellation
 {
     assert(NSThread.isMainThread);
-    
+
+    if ([self shouldAutoConfirm]) {
+        return;
+    }
+
     _cancellation = [cancellation copy];
     
 #if SPARKLE_COPY_LOCALIZATIONS
@@ -758,7 +772,11 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
 - (void)showDownloadInitiatedWithCancellation:(void (^)(void))cancellation
 {
     assert(NSThread.isMainThread);
-    
+
+    if ([self shouldAutoConfirm]) {
+        return;
+    }
+
     _cancellation = [cancellation copy];
     
     [self createAndShowStatusControllerWithClosable:NO];
@@ -821,7 +839,11 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
     assert(NSThread.isMainThread);
     
     _cancellation = nil;
-    
+
+    if ([self shouldAutoConfirm]) {
+        return;
+    }
+
     [self createAndShowStatusControllerWithClosable:NO];
 #if SPARKLE_COPY_LOCALIZATIONS
     NSBundle *sparkleBundle = SUSparkleBundle();
@@ -942,6 +964,17 @@ static const NSTimeInterval SUScheduledUpdateIdleEventLeewayInterval = DEBUG ? 3
     }
     
     [self _removeApplicationBecomeActiveObserver];
+}
+
+#pragma mark Auto-Confirm Modal Alert
+
+- (BOOL)shouldAutoConfirm {
+    id<SPUStandardUserDriverDelegate> delegate = _delegate;
+    if ([delegate respondsToSelector:@selector(standardUserDriverShouldAutoConfirmModalAlert)]) {
+        return [delegate standardUserDriverShouldAutoConfirmModalAlert];
+    }
+
+    return NO;
 }
 
 @end
